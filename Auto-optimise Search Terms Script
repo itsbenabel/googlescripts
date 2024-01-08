@@ -1,0 +1,159 @@
+//------------------------------------------------
+// Auto-optimize Search Terms
+// Created by: Remko van der Zwaag &amp; pdds
+// remkovanderzwaag.nl &amp; pdds.nl
+// Based on a Google example script: http://goo.gl/aunUKV
+//------------------------------------------------
+
+// Minimum number of impressions to consider "enough data"
+var IMPRESSIONS_THRESHOLD = 100;
+
+// Before new keywords are eligible to be added to the ad group, 
+// the search term metrics need to exceed the Conversion OR CTR threshold
+
+// Minimal number of conversions
+var CONVERSIONS_THRESHOLD = 2;
+// Minimal keyword CTR
+var CTR_THRESHOLD = 20; // Use dots for decimals, eg 0.5
+
+// The date range to investigate for potential keywords
+// Formatted as an AWQL DateRange, so you can use this helper,
+// one of the enumerations ('LAST_7_DAYS', 'YESTERDAY', etc),
+// or a manual range like '20140101,20140529'
+var DATE_RANGE = last_n_days(90);
+
+// The script doesn't do much logging in the current version. Set to 'debug' to debug.
+var LOG_LEVEL = 'error'; 
+
+// Please don't touch below this line
+
+function main() {
+  getAllKeywords();
+
+  var negativeKeywords = {};
+  var positiveKeywords = {};
+  var allAdGroupIds = {};
+
+var report = AdWordsApp.report(
+  "SELECT Query,Clicks,Cost,Ctr,ConversionRate,CostPerConversion,Conversions,CampaignId,AdGroupId " +
+  " FROM SEARCH_QUERY_PERFORMANCE_REPORT " +
+  " WHERE " +
+  " Impressions >= " + IMPRESSIONS_THRESHOLD +
+  " AND AdGroupStatus = ENABLED " +
+  " AND CampaignStatus = ENABLED " +
+  " DURING " + DATE_RANGE);
+var rows = report.rows();
+
+  // Iterate through search query and decide whether to
+  // add them as positive or negative keywords (or ignore).
+  while (rows.hasNext()) {
+    var row = rows.next();
+    // If query exists as keyword, we don't need to process; report and move on
+    if (keywordExists(row['Query'])) {
+      debug([row['Query'], 'exists'].join(': '));
+      continue;
+    }
+    debug([row['Query'], 'doesn\'t exist'].join(': '));
+    // If the keyword doesn't exist, check if query meets criteria for
+    // for addition as exact keyword
+
+    // Currently, either needs to beat the CTR_THRESHOLD or
+    // the CONVERSIONS_THRESHOLD
+    if (parseFloat(row['Ctr']) >= CTR_THRESHOLD ||
+    	parseInt(row['Conversions']) >= CONVERSIONS_THRESHOLD) {
+      // Save query as a keyword to be added to this adGroup
+      addToMultiMap(positiveKeywords, row['AdGroupId'], row['Query']);
+      allAdGroupIds[row['AdGroupId']] = true;
+    }
+  }
+
+  // Copy all the adGroupIds from the object into an array to allow bulkprocessing of groups
+  var adGroupIdList = [];
+  for (var adGroupId in allAdGroupIds) {
+    adGroupIdList.push(adGroupId);
+  }
+
+  // Fetch all touched adGroups and process relevant keywords
+  var adGroups = AdWordsApp.adGroups().withIds(adGroupIdList).get();
+  while (adGroups.hasNext()) {
+    var adGroup = adGroups.next();
+    // Add negative keywords that were saved to be added to the adGroup
+    // This version of the script doesn't mark keywords as negative,
+    // but the plumbing is there if you want to give it a try
+    if (negativeKeywords[adGroup.getId()]) {
+      for (var i = 0; i < negativeKeywords[adGroup.getId()].length; i++) {
+        adGroup.createNegativeKeyword('[' + negativeKeywords[adGroup.getId()][i] + ']');
+      }
+    }
+    // Add positive keywords that were saved to be added to the adGroup
+    if (positiveKeywords[adGroup.getId()]) {
+      for (var i = 0; i < positiveKeywords[adGroup.getId()].length; i++) {
+        adGroup.createKeyword('[' + positiveKeywords[adGroup.getId()][i] + ']');
+      }
+    }
+  }
+}
+
+// All the exact keywords in the account
+var allKeywordsMap = {};
+
+// Fill the allKeywordsMap with all keywords
+function getAllKeywords() {
+  var options = { includeZeroImpressions : true }; // Include keywords that aren't used
+  // AWQL query to find all keywords in the account
+  var query = "SELECT Criteria, KeywordMatchType FROM KEYWORDS_PERFORMANCE_REPORT WHERE KeywordMatchType = EXACT DURING LAST_7_DAYS";
+  var reportIter = AdWordsApp.report(query, options).rows();
+  while(reportIter.hasNext()) {
+    var row = reportIter.next();
+    debug("Exact keyword: '" + row.Criteria + "'");
+    // Save as key, for easy lookup
+    allKeywordsMap[row.Criteria.toLowerCase()] = true;
+  }
+  return allKeywordsMap;
+}
+
+// Check if keyword exists, only works if getAllKeywords has been run.
+function keywordExists(keyword) {
+  return (allKeywordsMap[keyword.toLowerCase()] !== undefined);
+}
+
+function addToMultiMap(map, key, value) {
+  if (!map[key]) {
+    map[key] = [];
+  }
+  map[key].push(value);
+}
+
+// Convenience function to generate a date range based on the current date.
+function last_n_days(n) {
+	var	from = new Date(),
+		to = new Date();
+	to.setUTCDate(from.getUTCDate() - n);
+	return google_date_range(from, to);
+}
+
+// Convenience function to generate a google formatted date range based on js Date objects
+function google_date_range(from, to) {
+	function google_format(date) {
+		var date_array = [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()];
+		if (date_array[1] < 10) date_array[1] = '0' + date_array[1];
+		if (date_array[2] < 10) date_array[2] = '0' + date_array[2];
+		return date_array.join('');
+	}
+	var inverse = (from > to);
+	from = google_format(from);
+	to = google_format(to);
+	var result = [from, to];
+	if (inverse) {
+		result = [to, from];
+	}
+	return result.join(',');
+}
+
+// Some functions to help with logging - gracefully borrowed from http://www.freeadwordsscripts.com
+var LOG_LEVELS = { 'error':1, 'warn':2, 'info':3, 'debug':4 };
+function error(msg) { if(LOG_LEVELS['error'] <= LOG_LEVELS[LOG_LEVEL]) { log('ERROR',msg); } }
+function warn(msg)  { if(LOG_LEVELS['warn']  <= LOG_LEVELS[LOG_LEVEL]) { log('WARN' ,msg); } }
+function info(msg)  { if(LOG_LEVELS['info']  <= LOG_LEVELS[LOG_LEVEL]) { log('INFO' ,msg); } }
+function debug(msg) { if(LOG_LEVELS['debug'] <= LOG_LEVELS[LOG_LEVEL]) { log('DEBUG',msg); } }
+function log(type,msg) { Logger.log(type + ' - ' + msg); }
