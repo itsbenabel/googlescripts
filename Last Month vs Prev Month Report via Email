@@ -1,0 +1,85 @@
+function main() {
+  // Set the email recipients and subject
+  var emailRecipients = "ben@reachbeyond.digital"; // Replace with recipient email address
+  var emailSubject = "_____ Google Ads Performance Comparison - Last Month vs Previous Month"; // Replace client account name
+
+  // Get the date range for last month
+  var today = new Date();
+  var lastMonthStartDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  var lastMonthEndDate = new Date(today.getFullYear(), today.getMonth(), 0);
+
+  var formattedLastMonthStartDate = Utilities.formatDate(lastMonthStartDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+  var formattedLastMonthEndDate = Utilities.formatDate(lastMonthEndDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+
+  // Get the date range for previous month
+  var previousMonthStartDate = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  var previousMonthEndDate = new Date(today.getFullYear(), today.getMonth() - 1, 0);
+
+  var formattedPreviousMonthStartDate = Utilities.formatDate(previousMonthStartDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+  var formattedPreviousMonthEndDate = Utilities.formatDate(previousMonthEndDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+
+  var lastMonthReport = AdsApp.report(
+    "SELECT Clicks, Impressions, Conversions, Cost " +
+    "FROM ACCOUNT_PERFORMANCE_REPORT " +
+    "WHERE Date >= '" + formattedLastMonthStartDate + "' AND Date <= '" + formattedLastMonthEndDate + "'"
+  );
+
+  var previousMonthReport = AdsApp.report(
+    "SELECT Clicks, Impressions, Conversions, Cost " +
+    "FROM ACCOUNT_PERFORMANCE_REPORT " +
+    "WHERE Date >= '" + formattedPreviousMonthStartDate + "' AND Date <= '" + formattedPreviousMonthEndDate + "'"
+  );
+
+  var lastMonthRows = lastMonthReport.rows();
+  var previousMonthRows = previousMonthReport.rows();
+
+  var lastMonthClicks = 0;
+  var lastMonthImpressions = 0;
+  var lastMonthConversions = 0;
+  var lastMonthCost = 0;
+
+  var previousMonthClicks = 0;
+  var previousMonthImpressions = 0;
+  var previousMonthConversions = 0;
+  var previousMonthCost = 0;
+
+  while (lastMonthRows.hasNext()) {
+    var row = lastMonthRows.next();
+    lastMonthClicks += parseInt(row['Clicks']);
+    lastMonthImpressions += parseInt(row['Impressions']);
+    lastMonthConversions += parseInt(row['Conversions']);
+    lastMonthCost += parseFloat(row['Cost']);
+  }
+
+  while (previousMonthRows.hasNext()) {
+    var row = previousMonthRows.next();
+    previousMonthClicks += parseInt(row['Clicks']);
+    previousMonthImpressions += parseInt(row['Impressions']);
+    previousMonthConversions += parseInt(row['Conversions']);
+    previousMonthCost += parseFloat(row['Cost']);
+  }
+
+  var averageCPCLastMonth = lastMonthClicks > 0 ? lastMonthCost / lastMonthClicks : 0;
+  var CTRLastMonth = lastMonthImpressions > 0 ? (lastMonthClicks / lastMonthImpressions) * 100 : 0;
+  var costPerConversionLastMonth = lastMonthConversions > 0 ? lastMonthCost / lastMonthConversions : 0;
+
+  var averageCPCPreviousMonth = previousMonthClicks > 0 ? previousMonthCost / previousMonthClicks : 0;
+  var CTRPreviousMonth = previousMonthImpressions > 0 ? (previousMonthClicks / previousMonthImpressions) * 100 : 0;
+  var costPerConversionPreviousMonth = previousMonthConversions > 0 ? previousMonthCost / previousMonthConversions : 0;
+
+  var message = "Hey Ben, here is ___ Google Ads Performance Comparison - Last Month vs Previous Month:\n\n"; // replace client name
+  message += "Clicks: " + lastMonthClicks + " vs " + previousMonthClicks + "\n";
+  message += "Impressions: " + lastMonthImpressions + " vs " + previousMonthImpressions + "\n";
+  message += "Average CPC: $" + averageCPCLastMonth.toFixed(2) + " vs $" + averageCPCPreviousMonth.toFixed(2) + "\n";
+  message += "CTR: " + CTRLastMonth.toFixed(2) + "% vs " + CTRPreviousMonth.toFixed(2) + "%\n";
+  message += "Conversions: " + lastMonthConversions + " vs " + previousMonthConversions + "\n";
+  message += "Cost per Conversion: $" + costPerConversionLastMonth.toFixed(2) + " vs $" + costPerConversionPreviousMonth.toFixed(2) + "\n";
+  message += "Cost: $" + lastMonthCost.toFixed(2) + " vs $" + previousMonthCost.toFixed(2) + "\n";
+
+  // Send email
+  MailApp.sendEmail({
+    to: emailRecipients,
+    subject: emailSubject,
+    body: message
+  });
+}
