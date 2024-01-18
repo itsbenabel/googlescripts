@@ -1,0 +1,66 @@
+var SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1H-IBqURk9CPEVvstnAieecvi3c1dGkAnqQJxYmcnBpw/edit?usp=sharing"; // insert a new blank spreadsheet URL between the double quotes
+var EMAIL_ADDRESSES = "your@email.com"; // alert email addresses, insert your email addresses between the double quotes. You can add multiple email addresses between the double quotes, just separate them via a comma, e.g., "john@example.com, jane@example.com"
+
+var SEND_EMAIL = true;
+var EMAIL_SUBJECT = "[GAds Script] - No Changes Alert";
+var EMAIL_BODY = 
+    "\n"+
+    "***\n"+
+    "\n"+
+    "This script checks changes in the 'Change history' for the last 7 days.\n"+
+    "If there are no changes, an email alert is sent to: "+ EMAIL_ADDRESSES +"\n";
+ 
+var PERIOD = "LAST_7_DAYS";
+ 
+function main() { 
+  Logger.log("Processing account: "+AdsApp.currentAccount().getName());
+  var changeAlerts = getChangeAlerts();
+ 
+  if (changeAlerts.length === 0) {
+    sendEmail();
+  } else {
+    Logger.log("Found changes in the last 7 days. No alert sent.");
+  }
+}
+ 
+// look into change history and return changes to add to the alert report
+function getChangeAlerts() {
+  var changes = [];
+     
+  var query = "SELECT " + 
+              "change_event.change_date_time " +
+              "FROM change_event " +
+              "WHERE change_event.change_date_time DURING "+PERIOD+" " + 
+              "LIMIT 1 "; // check if there is at least one change in the last 7 days
+               
+  try {
+    var result = AdsApp.search(query);
+  } catch (e) {
+    alert("Issue retrieving results from the search API: "+e);
+  } 
+   
+  while (result.hasNext()) {
+    result.next(); // If there is at least one change, return an empty array
+    return changes;
+  }
+  
+  return changes;
+}
+ 
+function sendEmail() {
+  var accountName = AdsApp.currentAccount().getName();
+   
+  if (SEND_EMAIL) {
+    // send the email
+    var emailBody = 
+        "No changes detected in the last 7 days.\n" + 
+        "See details: "+ SPREADSHEET_URL+ "\n" + EMAIL_BODY;
+ 
+    MailApp.sendEmail(EMAIL_ADDRESSES, EMAIL_SUBJECT+" | "+accountName, emailBody);
+    Logger.log("Sending alert mail for no changes in the last 7 days.");
+  }  
+}
+ 
+function alert(string) {
+  Logger.log("### "+string);
+}
