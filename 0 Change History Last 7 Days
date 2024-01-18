@@ -1,5 +1,5 @@
 var SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1H-IBqURk9CPEVvstnAieecvi3c1dGkAnqQJxYmcnBpw/edit?usp=sharing"; // insert a new blank spreadsheet URL between the double quotes
-var EMAIL_ADDRESSES = "your@email.com"; // alert email addresses, insert your email addresses between the double quotes. You can add multiple email addresses between the double quotes, just separate them via a comma, e.g., "john@example.com, jane@example.com"
+var EMAIL_ADDRESSES = "ben@reachbeyond.digital"; // alert email addresses, insert your email addresses between the double quotes. You can add multiple email addresses between the double quotes, just separate them via a comma, e.g., "john@example.com, jane@example.com"
 
 var SEND_EMAIL = true;
 var EMAIL_SUBJECT = "[GAds Script] - No Changes Alert";
