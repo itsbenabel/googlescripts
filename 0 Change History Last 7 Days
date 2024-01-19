@@ -1,66 +1,60 @@
-var SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1H-IBqURk9CPEVvstnAieecvi3c1dGkAnqQJxYmcnBpw/edit?usp=sharing"; // insert a new blank spreadsheet URL between the double quotes
-var EMAIL_ADDRESSES = "ben@reachbeyond.digital"; // alert email addresses, insert your email addresses between the double quotes. You can add multiple email addresses between the double quotes, just separate them via a comma, e.g., "john@example.com, jane@example.com"
-
+var SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1H-IBqURk9CPEVvstnAieecvi3c1dGkAnqQJxYmcnBpw/edit?usp=sharing";
+var EMAIL_ADDRESSES = "benabelads@gmail.com"; // Replace with recipient email address
 var SEND_EMAIL = true;
-var EMAIL_SUBJECT = "[GAds Script] - No Changes Alert";
-var EMAIL_BODY = 
-    "\n"+
-    "***\n"+
-    "\n"+
-    "This script checks changes in the 'Change history' for the last 7 days.\n"+
-    "If there are no changes, an email alert is sent to: "+ EMAIL_ADDRESSES +"\n";
- 
-var PERIOD = "LAST_7_DAYS";
- 
-function main() { 
-  Logger.log("Processing account: "+AdsApp.currentAccount().getName());
-  var changeAlerts = getChangeAlerts();
- 
-  if (changeAlerts.length === 0) {
-    sendEmail();
+var EMAIL_SUBJECT_PREFIX = "[GAds Script] - Warning - ";
+var EMAIL_BODY_PREFIX =
+    "\n" +
+    "***\n" +
+    "\n" +
+    "This script checks the change history in the last 7 days:\n";
+
+function main() {
+  var accountName = AdsApp.currentAccount().getName();
+  Logger.log("Processing account: " + accountName);
+
+  var lastSevenDaysChangeCount = getChangeCountLastSevenDays();
+
+  if (lastSevenDaysChangeCount === 0) {
+    sendEmail(accountName);
   } else {
-    Logger.log("Found changes in the last 7 days. No alert sent.");
+    Logger.log("Change history detected. No alert needed.");
   }
 }
- 
-// look into change history and return changes to add to the alert report
-function getChangeAlerts() {
-  var changes = [];
-     
-  var query = "SELECT " + 
-              "change_event.change_date_time " +
+
+function getChangeCountLastSevenDays() {
+  var today = new Date();
+  var sevenDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+
+  var query = "SELECT COUNT(*) " +
               "FROM change_event " +
-              "WHERE change_event.change_date_time DURING "+PERIOD+" " + 
-              "LIMIT 1 "; // check if there is at least one change in the last 7 days
-               
+              "WHERE change_event.change_date_time >= '" + sevenDaysAgo.toISOString() + "'";
+
   try {
     var result = AdsApp.search(query);
+    if (result.hasNext()) {
+      var row = result.next();
+      return parseInt(row["COUNT(*)"]);
+    } else {
+      return 0;
+    }
   } catch (e) {
-    alert("Issue retrieving results from the search API: "+e);
-  } 
-   
-  while (result.hasNext()) {
-    result.next(); // If there is at least one change, return an empty array
-    return changes;
+    alert("Issue retrieving results from search API: " + e);
+    return -1;
   }
-  
-  return changes;
 }
- 
-function sendEmail() {
-  var accountName = AdsApp.currentAccount().getName();
-   
+
+function sendEmail(accountName) {
   if (SEND_EMAIL) {
-    // send the email
-    var emailBody = 
-        "No changes detected in the last 7 days.\n" + 
-        "See details: "+ SPREADSHEET_URL+ "\n" + EMAIL_BODY;
- 
-    MailApp.sendEmail(EMAIL_ADDRESSES, EMAIL_SUBJECT+" | "+accountName, emailBody);
-    Logger.log("Sending alert mail for no changes in the last 7 days.");
-  }  
+    // Send the email
+    var emailSubject = EMAIL_SUBJECT_PREFIX + "No Change History in Last 7 Days - " + accountName;
+    var emailBody = "No change history detected in the last 7 days for the account: " + accountName + ". See details: " + SPREADSHEET_URL + "\n" + EMAIL_BODY_PREFIX;
+
+    MailApp.sendEmail(EMAIL_ADDRESSES, emailSubject, emailBody);
+    Logger.log("Sending alert mail");
+  }
 }
- 
+
 function alert(string) {
-  Logger.log("### "+string);
+  Logger.log("### " + string);
 }
+
