@@ -1,0 +1,35 @@
+function main() {
+  var emailRecipients = "ben@reachbeyond.digital"; // Replace with your email address
+  var emailSubject = "Account Spending Alert";
+
+  var today = new Date();
+  var firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  var lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+  var formattedFirstDayOfMonth = Utilities.formatDate(firstDayOfMonth, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+  var formattedLastDayOfMonth = Utilities.formatDate(lastDayOfMonth, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+
+  var accountPerformance = AdsApp.report(
+    "SELECT Cost FROM ACCOUNT_PERFORMANCE_REPORT " +
+    "WHERE Date >= '" + formattedFirstDayOfMonth + "' AND Date <= '" + formattedLastDayOfMonth + "'"
+  );
+
+  var accountRows = accountPerformance.rows();
+  var totalCost = 0;
+
+  while (accountRows.hasNext()) {
+    var row = accountRows.next();
+    totalCost += parseFloat(row['Cost']);
+  }
+
+  if (totalCost >= 2600) {
+    var message = "Account Spending Alert: The account has spent $" + totalCost.toFixed(2) + " in this month.";
+
+    // Send email
+    MailApp.sendEmail({
+      to: emailRecipients,
+      subject: emailSubject,
+      body: message
+    });
+  }
+}
