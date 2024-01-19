@@ -1,0 +1,65 @@
+function main() {
+  // Set the email recipients and subject
+  var emailRecipients = "ben@reachbeyond.digital"; // Replace with recipient email address
+  var emailSubject = "Cost Per Conversion Warning";
+
+  // Get the date range for the last 7 days
+  var today = new Date();
+  var lastSevenDaysEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  var lastSevenDaysStartDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+
+  var formattedLastSevenDaysEndDate = Utilities.formatDate(lastSevenDaysEndDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+  var formattedLastSevenDaysStartDate = Utilities.formatDate(lastSevenDaysStartDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+
+  // Get the date range for the 7 days before the last 7 days
+  var previousSevenDaysStartDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14);
+  var previousSevenDaysEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8);
+
+  var formattedPreviousSevenDaysStartDate = Utilities.formatDate(previousSevenDaysStartDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+  var formattedPreviousSevenDaysEndDate = Utilities.formatDate(previousSevenDaysEndDate, AdsApp.currentAccount().getTimeZone(), "yyyyMMdd");
+
+  // Get the performance data for the last 7 days
+  var lastSevenDaysReport = AdsApp.report(
+    "SELECT Conversions, Cost, CostPerConversion " +
+    "FROM ACCOUNT_PERFORMANCE_REPORT " +
+    "WHERE Date >= '" + formattedLastSevenDaysStartDate + "' AND Date <= '" + formattedLastSevenDaysEndDate + "'"
+  );
+
+  var previousSevenDaysReport = AdsApp.report(
+    "SELECT Conversions, Cost, CostPerConversion " +
+    "FROM ACCOUNT_PERFORMANCE_REPORT " +
+    "WHERE Date >= '" + formattedPreviousSevenDaysStartDate + "' AND Date <= '" + formattedPreviousSevenDaysEndDate + "'"
+  );
+
+  var lastSevenDaysRows = lastSevenDaysReport.rows().next();
+  var previousSevenDaysRows = previousSevenDaysReport.rows().next();
+
+  // Extract relevant metrics
+  var conversionsLastSevenDays = parseFloat(lastSevenDaysRows['Conversions']);
+  var costLastSevenDays = parseFloat(lastSevenDaysRows['Cost']);
+  var costPerConversionLastSevenDays = parseFloat(lastSevenDaysRows['CostPerConversion']);
+
+  var conversionsPreviousSevenDays = parseFloat(previousSevenDaysRows['Conversions']);
+  var costPreviousSevenDays = parseFloat(previousSevenDaysRows['Cost']);
+  var costPerConversionPreviousSevenDays = parseFloat(previousSevenDaysRows['CostPerConversion']);
+
+  // Calculate percentage increase in cost per conversion
+  var percentageIncrease = ((costPerConversionLastSevenDays - costPerConversionPreviousSevenDays) / costPerConversionPreviousSevenDays) * 100;
+
+  // Check if the increase is more than 25%
+  if (percentageIncrease > 25) {
+    // Send email warning
+    var message = "Warning: Cost per Conversion has increased more than 25% in the last 7 days compared to the previous 7 days.\n\n";
+    message += "Account Name: " + AdsApp.currentAccount().getName() + "\n";
+    message += "Cost per Conversion (Last 7 Days): $" + costPerConversionLastSevenDays.toFixed(2) + "\n";
+    message += "Cost per Conversion (Previous 7 Days): $" + costPerConversionPreviousSevenDays.toFixed(2) + "\n";
+    message += "Percentage Increase: " + percentageIncrease.toFixed(2) + "%";
+
+    // Send email
+    MailApp.sendEmail({
+      to: emailRecipients,
+      subject: emailSubject,
+      body: message
+    });
+  }
+}
