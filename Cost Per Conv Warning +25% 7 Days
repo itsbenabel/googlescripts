@@ -1,7 +1,6 @@
 function main() {
   // Set the email recipients and subject
-  var emailRecipients = "ben@reachbeyond.digital"; // Replace with recipient email address
-  var emailSubject = "Cost Per Conversion Warning";
+  var emailRecipients = "your@email.com"; // Replace with recipient email address
 
   // Get the date range for the last 7 days
   var today = new Date();
@@ -48,9 +47,12 @@ function main() {
 
   // Check if the increase is more than 25%
   if (percentageIncrease > 25) {
-    // Send email warning
+    // Send email warning with dynamic account name
+    var accountName = AdsApp.currentAccount().getName();
+    var emailSubject = "[Warning] Cost Per Conversion Increase - " + accountName;
+
     var message = "Warning: Cost per Conversion has increased more than 25% in the last 7 days compared to the previous 7 days.\n\n";
-    message += "Account Name: " + AdsApp.currentAccount().getName() + "\n";
+    message += "Account Name: " + accountName + "\n";
     message += "Cost per Conversion (Last 7 Days): $" + costPerConversionLastSevenDays.toFixed(2) + "\n";
     message += "Cost per Conversion (Previous 7 Days): $" + costPerConversionPreviousSevenDays.toFixed(2) + "\n";
     message += "Percentage Increase: " + percentageIncrease.toFixed(2) + "%";
